@@ -1,22 +1,22 @@
 # Relay
 
-**Drive Figma from Claude Code.** A localhost bridge that gives Claude Code direct access to your open Figma file — search components, audit token coverage, restyle variants, swap copy across recipes — without leaving the terminal.
+Drive Figma from Claude Code. Relay is a localhost bridge that gives Claude Code direct access to your open Figma file: search components, audit token coverage, restyle variants, swap copy across recipes, all without leaving the terminal.
 
 [![Watch the demo](https://cdn.loom.com/sessions/thumbnails/d4127a4e2df743e7a3a81cfcd37cf477-de14bbe8f6fa13f9-full-play.gif)](https://www.loom.com/share/d4127a4e2df743e7a3a81cfcd37cf477)
 
 ## Why Relay
 
-Claude Code is great at thinking about your codebase, but it can't touch your design system. Figma plugins can — but they don't have a terminal, your repo, your CI, or your other tools. Relay is the wire between them.
+Claude Code is good at reasoning about your codebase but it can't touch your design system. Figma plugins can, but they don't have a terminal, your repo, your CI, or your other tools. Relay is the wire between them.
 
 Once installed, Claude Code can:
 
-- **Build components** — scaffold new variants, populate slots, wire instance-swap props
-- **Audit components** — sweep a page for unbound fills/strokes, missing focus states, hand-rolled atoms, accessibility regressions
-- **Revise components** — mass-rename variants, rebind colors to tokens, restyle entire component sets in one prompt
+- **Build components.** Scaffold new variants, populate slots, wire instance-swap props.
+- **Audit components.** Sweep a page for unbound fills, missing focus states, hand-rolled atoms, accessibility regressions.
+- **Revise components.** Mass-rename variants, rebind colors to tokens, restyle entire component sets in one prompt.
 
-All driven from the same chat where you're working on the rest of your code. No copy-paste, no switching tools, no manual repetition.
+Everything happens inside the chat where you're already writing code, so there's nothing to copy-paste between tools.
 
-> **Designer-friendly mode:** Relay also ships with a built-in chat panel inside the plugin. Bring your own Anthropic API key and talk to a Haiku agent that has the same tool surface — no terminal required.
+> **No-terminal mode.** Relay also ships with a chat panel inside the plugin. Bring your own Anthropic API key and talk to a Haiku agent with the same tool surface.
 
 ## Screenshots
 
@@ -31,11 +31,11 @@ Claude Code  ──▶  MCP server  ──▶  Relay HTTP queue  ──▶  Figm
                   (stdio)          (127.0.0.1:9226)       (long-poll)
 ```
 
-Three pieces, each runs locally:
+Three pieces, all local:
 
-- **`server/`** — Tiny Node HTTP relay on `127.0.0.1:9226`. In-memory task queue with long-poll. No state outside the process.
-- **`plugin/`** — The Figma plugin. Sandbox executes `figma.*` calls; UI handles the chat/activity panel and worker polling.
-- **`mcp/`** — MCP server that exposes Relay's tools to Claude Code over stdio.
+- **`server/`**: Node HTTP relay on `127.0.0.1:9226`. In-memory task queue with long-poll. No state outside the process.
+- **`plugin/`**: the Figma plugin. The sandbox executes `figma.*` calls; the UI handles the chat/activity panel and worker polling.
+- **`mcp/`**: MCP server that exposes Relay's tools to Claude Code over stdio.
 
 ## Quick start
 
@@ -46,16 +46,16 @@ cd server
 npm start
 ```
 
-Server listens on `127.0.0.1:9226`. No API keys required for the Claude Code path.
+Listens on `127.0.0.1:9226`. The Claude Code path doesn't need an API key.
 
 ### 2. Install the Figma plugin
 
-1. Open Figma desktop
-2. **Plugins → Development → Import plugin from manifest…**
-3. Pick `plugin/manifest.json`
-4. **Plugins → Development → Relay** to launch
+1. Open Figma desktop.
+2. Plugins → Development → Import plugin from manifest…
+3. Pick `plugin/manifest.json`.
+4. Plugins → Development → Relay to launch.
 
-Worker mode is on by default — the plugin starts polling the relay immediately and shows "Worker idle" until a task arrives.
+Worker mode is on by default. The plugin starts polling the relay immediately and shows "Worker idle" until a task arrives.
 
 ### 3. Wire up Claude Code
 
@@ -74,7 +74,7 @@ Restart Claude Code, run `/mcp`, confirm `relay` is connected.
 
 ### 4. Use it
 
-With your target Figma file open and the plugin running, ask Claude Code anything about the file:
+With your target Figma file open and the plugin running, ask Claude Code about the file:
 
 > Find every Button component in this file and report its variants.
 >
@@ -82,7 +82,7 @@ With your target Figma file open and the plugin running, ask Claude Code anythin
 >
 > Rename every Checkbox recipe label from "Remember me" to "Subscribe to updates".
 
-Claude Code will pick the right `mcp__relay__figma_*` tool, the plugin executes against your open document, and the result flows back to the conversation.
+Claude Code picks the right `mcp__relay__figma_*` tool, the plugin executes against your open document, and the result flows back to the conversation.
 
 ## Tools exposed to Claude Code
 
@@ -95,33 +95,33 @@ Claude Code will pick the right `mcp__relay__figma_*` tool, the plugin executes 
 | `figma_set_fills` | Replace fills array on a node |
 | `figma_set_strokes` | Replace strokes array on a node |
 | `figma_set_instance_properties` | Set variant / boolean / text / instance-swap props on an INSTANCE |
-| `figma_execute` | Escape hatch — run an arbitrary async snippet inside the plugin sandbox |
+| `figma_execute` | Escape hatch for arbitrary async snippets inside the plugin sandbox |
 
 Add more by extending the `tools` map in `plugin/code.js` and registering them in `mcp/server.js`.
 
-## Designer-friendly mode (BYOK chat)
+## No-terminal mode (BYOK chat)
 
-If you'd rather not set up Claude Code, the plugin has a built-in chat panel. On first launch it asks for an Anthropic API key, stored in `figma.clientStorage` (per-device, encrypted by Figma, never leaves your machine except to call `api.anthropic.com`).
+If you'd rather not set up Claude Code, the plugin has a built-in chat panel. On first launch it asks for an Anthropic API key, stored in `figma.clientStorage`. The key is per-device and only ever sent to `api.anthropic.com`.
 
-This is the public-distribution path: anyone can install the plugin, paste a key, and chat with a Haiku agent that has the same `figma.*` tools as Claude Code.
+This is the public-distribution path. Anyone can install the plugin, paste a key, and chat with a Haiku agent that has the same `figma.*` tools as Claude Code.
 
 ## Two task shapes
 
-The relay accepts two flavors of `POST /tasks`:
+The relay accepts two flavors of `POST /tasks`.
 
-**Direct tool call** — used by the MCP server. No LLM in the plugin loop.
+**Direct tool call**, used by the MCP server. No LLM in the plugin loop:
 
 ```json
 { "tool": "figma.search_components", "input": { "query": "Button" } }
 ```
 
-**Natural-language instruction** — used by the in-plugin chat. The plugin runs an in-plugin Haiku agent loop with the tool whitelist.
+**Natural-language instruction**, used by the in-plugin chat. The plugin runs a Haiku agent loop with the tool whitelist:
 
 ```json
 { "instruction": "Find every Button component and list its variants." }
 ```
 
-Both go through the same queue and worker. Add `?wait=true&timeout=60000` to the POST to block until the task reaches a terminal state (this is how the MCP server makes synchronous tool calls).
+Both go through the same queue and worker. Add `?wait=true&timeout=60000` to the POST to block until the task reaches a terminal state. That's how the MCP server makes synchronous tool calls.
 
 ## Health check
 
@@ -133,11 +133,11 @@ curl -X POST 'http://127.0.0.1:9226/tasks?wait=true&timeout=10000' \
   -d '{"tool": "figma.search_components", "input": {"query": ""}}'
 ```
 
-If the plugin is running, the second call returns a list of every component in the open file.
+If the plugin is running, the second call returns every component in the open file.
 
 ## Design notes
 
-See [`DESIGN.md`](./DESIGN.md) for architectural background — why a localhost queue beats a WebSocket bridge, why Haiku for the in-plugin agent, what the MVP intentionally skips.
+See [`DESIGN.md`](./DESIGN.md) for architectural background: why a localhost queue beats a WebSocket bridge, why Haiku for the in-plugin agent, what the MVP intentionally skips.
 
 ## License
 
