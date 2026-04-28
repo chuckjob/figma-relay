@@ -1,0 +1,14 @@
+{
+  "name": "relay-server",
+  "version": "0.1.0",
+  "description": "Localhost task-queue relay between Claude Code and the Relay Figma plugin",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,1954 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>Relay</title>
+  <style>
+    :root {
+      --bg-canvas:    #08090A;
+      --bg-surface:   #131316;
+      --bg-surface-2: #1C1C20;
+      --bg-hover:     #23232A;
+      --border:       #23232A;
+      --border-strong:#2E2E36;
+      --text-primary: #E6E6E6;
+      --text-secondary:#989FA8;
+      --text-tertiary:#6B7079;
+      --accent:       #8B5CF6;
+      --accent-hover: #A78BFA;
+      --accent-pressed:#7C3AED;
+      --accent-bg:    rgba(139, 92, 246, 0.12);
+      --danger:       #EF4444;
+      --success:      #10B981;
+      --radius-sm:    4px;
+      --radius-md:    6px;
+      --radius-lg:    10px;
+      --shadow-pop:   0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+    button { font-family: inherit; cursor: pointer; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Header */
+    header.app-header {
+      display: flex; align-items: center; gap: 4px;
+      padding: 6px 8px 6px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-canvas);
+      flex-shrink: 0;
+      min-height: 44px;
+    }
+    .logo { width: 18px; height: 24px; flex-shrink: 0; margin-right: 4px; }
+    .logo svg { width: 100%; height: 100%; display: block; }
+
+    .tab-strip {
+      flex: 1; min-width: 0;
+      display: flex; gap: 2px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-strip::-webkit-scrollbar { display: none; }
+
+    .header-right {
+      display: flex; gap: 2px;
+      flex-shrink: 0;
+      padding-left: 6px;
+      border-left: 1px solid var(--border);
+      margin-left: 4px;
+    }
+
+    .icon-btn {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0; border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      position: relative;
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .icon-btn:disabled:hover { background: transparent; color: var(--text-secondary); }
+    .icon-btn.active { background: var(--bg-hover); color: var(--text-primary); }
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    /* Tabs */
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 4px 5px 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: 12px;
+      max-width: 160px; min-width: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .tab.active {
+      background: var(--bg-surface-2);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+    .tab-dot {
+      width: 6px; height: 6px; border-radius: 3px;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .tab-dot.ok { background: var(--success); }
+    .tab-dot.busy { background: var(--accent); animation: pulse 1.2s infinite; }
+    .tab-dot.err { background: var(--danger); }
+    .tab-dot.unread { background: var(--accent); }
+    @keyframes pulse { 50% { opacity: 0.4; } }
+    .tab-name {
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    .tab-close {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0;
+      border-radius: 3px;
+      color: inherit;
+      opacity: 0.5;
+      transition: opacity 0.1s, background 0.1s;
+      flex-shrink: 0;
+    }
+    .tab:hover .tab-close, .tab.active .tab-close { opacity: 0.8; }
+    .tab-close:hover { background: var(--bg-hover); opacity: 1; }
+    .tab-close svg { width: 10px; height: 10px; }
+    .tab.pinned { padding-right: 8px; }
+    .tab.pinned .tab-close { display: none; }
+
+    /* Main */
+    main {
+      flex: 1; overflow: hidden;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .view { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+    .view.active { display: flex; }
+
+    /* Home view (no tabs open) */
+    #view-home { padding: 32px 24px 24px; overflow-y: auto; }
+    .home-hero { text-align: center; padding: 12px 0 20px; }
+    .home-mark { width: 56px; height: 56px; margin: 0 auto 12px; }
+    .home-mark svg { width: 100%; height: 100%; }
+    .home-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
+    .home-sub { font-size: 13px; color: var(--text-secondary); margin: 0; }
+    .home-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 4px;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .status-dot.ok { background: var(--success); }
+    .status-dot.busy { background: var(--accent); animation: pulse 1.2s infinite; }
+    .status-dot.err { background: var(--danger); }
+    .home-cta {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .home-cta > div:first-child { flex: 1; }
+    .home-cta-title { color: var(--text-primary); font-size: 12px; font-weight: 500; }
+    .home-cta-sub { color: var(--text-tertiary); font-size: 11px; margin-top: 2px; }
+
+    /* Setup view */
+    #view-setup { padding: 28px 24px; overflow-y: auto; }
+    .setup-card { max-width: 360px; margin: 24px auto 0; }
+    .setup-icon { width: 56px; height: 76px; margin: 0 auto 20px; display: block; }
+    .setup-title { font-size: 18px; font-weight: 600; text-align: center; margin: 0 0 8px; }
+    .setup-sub { color: var(--text-secondary); text-align: center; margin: 0 0 24px; font-size: 12px; }
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 11px; color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+    input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: inherit; font-size: 13px;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: border-color 0.1s;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 14px;
+      background: var(--accent); color: white;
+      border: 0; border-radius: var(--radius-md);
+      font-weight: 500; font-size: 13px;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:active { background: var(--accent-pressed); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-strong);
+    }
+    .btn.btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .btn-block { width: 100%; }
+    .helper { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+
+    /* Tab content view */
+    #view-tab { display: none; flex-direction: column; }
+    #view-tab.active { display: flex; }
+
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+    }
+    .empty-mark { width: 44px; height: 60px; opacity: 0.85; margin-bottom: 16px; }
+    .empty-greeting { font-size: 17px; font-weight: 500; color: var(--text-primary); margin: 0 0 6px; }
+    .empty-sub { color: var(--text-secondary); margin: 0 0 24px; font-size: 12px; }
+    .suggestions { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 320px; }
+    .suggestion {
+      text-align: left;
+      padding: 9px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 12px; line-height: 1.4;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .suggestion:hover { background: var(--bg-surface-2); border-color: var(--border-strong); }
+
+    .thread {
+      flex: 1; overflow-y: auto;
+      padding: 16px 16px 8px;
+      display: flex; flex-direction: column; gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    .thread::-webkit-scrollbar { width: 8px; }
+    .thread::-webkit-scrollbar-track { background: transparent; }
+    .thread::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+    .msg-user {
+      align-self: flex-end;
+      max-width: 85%;
+      background: var(--bg-surface-2);
+      padding: 9px 13px;
+      border-radius: 14px;
+      border-top-right-radius: 4px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 13px;
+    }
+    .msg-assistant { align-self: stretch; padding: 4px 0; font-size: 13px; }
+    .msg-assistant .md p { margin: 0 0 10px; }
+    .msg-assistant .md p:last-child { margin-bottom: 0; }
+    .msg-assistant .md h1, .msg-assistant .md h2, .msg-assistant .md h3 {
+      margin: 16px 0 8px; font-weight: 600;
+    }
+    .msg-assistant .md h1 { font-size: 16px; }
+    .msg-assistant .md h2 { font-size: 14px; }
+    .msg-assistant .md h3 { font-size: 13px; }
+    .msg-assistant .md ul, .msg-assistant .md ol { margin: 0 0 10px; padding-left: 22px; }
+    .msg-assistant .md li { margin-bottom: 4px; }
+    .msg-assistant .md code {
+      background: var(--bg-surface-2);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+      font-size: 12px;
+    }
+    .msg-assistant .md pre {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      font-size: 12px;
+      margin: 8px 0 12px;
+    }
+    .msg-assistant .md pre code { background: transparent; padding: 0; }
+    .msg-assistant .md a { color: var(--accent); }
+    .cursor {
+      display: inline-block;
+      width: 7px; height: 13px;
+      background: var(--accent);
+      vertical-align: text-bottom;
+      animation: blink 1s steps(1) infinite;
+      margin-left: 1px;
+      border-radius: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .tool-call {
+      align-self: stretch;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      overflow: hidden;
+    }
+    .tool-call-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+    .tool-call-header:hover { background: var(--bg-surface-2); }
+    .tool-chevron { width: 12px; height: 12px; transition: transform 0.15s; flex-shrink: 0; }
+    .tool-call.open .tool-chevron { transform: rotate(90deg); }
+    .tool-name { font-family: 'SF Mono', monospace; color: var(--text-primary); flex: 1; }
+    .tool-status {
+      font-size: 10px; color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tool-status.running { color: var(--accent); }
+    .tool-status.error { color: var(--danger); }
+    .tool-body { display: none; padding: 0 10px 10px; border-top: 1px solid var(--border); }
+    .tool-call.open .tool-body { display: block; }
+    .tool-body pre {
+      background: var(--bg-canvas);
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      max-height: 200px;
+      overflow: auto;
+      margin: 8px 0 0;
+      font-family: 'SF Mono', monospace;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .tool-body-label {
+      font-size: 10px; color: var(--text-tertiary);
+      margin-top: 8px; text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .error-msg {
+      align-self: stretch;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+    }
+
+    /* Relay activity events (Claude Code Relay tab) */
+    .relay-event {
+      align-self: stretch;
+      display: flex; gap: 10px;
+      padding: 6px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .relay-event-time { color: var(--text-tertiary); flex-shrink: 0; }
+    .relay-event-text { flex: 1; min-width: 0; }
+    .relay-event.task .relay-event-text { color: var(--accent); }
+    .relay-event.ok .relay-event-text { color: var(--success); }
+    .relay-event.err { background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.2); }
+    .relay-event.err .relay-event-text { color: var(--danger); }
+    .relay-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px; text-align: center;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    /* Input dock */
+    .dock {
+      flex-shrink: 0;
+      padding: 10px 12px 12px;
+      background: var(--bg-canvas);
+      border-top: 1px solid var(--border);
+    }
+    .dock[hidden] { display: none; }
+    .input-wrap {
+      display: flex; align-items: flex-end; gap: 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 8px 8px 8px 12px;
+      transition: border-color 0.15s;
+    }
+    .input-wrap:focus-within { border-color: var(--accent); }
+    .input-wrap textarea {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      padding: 4px 0;
+      resize: none;
+      max-height: 140px;
+      min-height: 22px;
+      line-height: 1.45;
+      outline: none;
+      font-size: 13px;
+    }
+    .send-btn {
+      width: 30px; height: 30px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent);
+      color: white;
+      border: 0; border-radius: var(--radius-md);
+      transition: background 0.1s;
+    }
+    .send-btn:hover { background: var(--accent-hover); }
+    .send-btn:disabled { background: var(--bg-hover); color: var(--text-tertiary); cursor: not-allowed; }
+    .send-btn svg { width: 14px; height: 14px; }
+    .input-hint {
+      font-size: 10px; color: var(--text-tertiary);
+      margin-top: 6px; padding: 0 4px;
+      display: flex; justify-content: space-between;
+    }
+
+    /* Settings view */
+    #view-settings { padding: 16px 18px; overflow-y: auto; }
+    .settings-section { margin-bottom: 24px; }
+    .settings-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin: 0 0 10px;
+    }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: 1px solid var(--border); }
+    .toggle-label { display: flex; flex-direction: column; gap: 2px; }
+    .toggle-label .name { color: var(--text-primary); font-size: 13px; }
+    .toggle-label .desc { color: var(--text-tertiary); font-size: 11px; }
+    .toggle {
+      position: relative;
+      width: 32px; height: 18px;
+      background: var(--bg-hover);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 14px; height: 14px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.15s;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle.on::after { transform: translateX(14px); }
+
+    select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: inherit; font-size: 12px;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      outline: none;
+    }
+
+    .key-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+    .key-display {
+      flex: 1;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+    }
+    .key-display.empty { color: var(--text-tertiary); font-style: italic; font-family: inherit; }
+
+    .settings-back {
+      margin-bottom: 14px;
+    }
+
+    /* Popovers */
+    .popover-overlay {
+      position: fixed; inset: 0;
+      z-index: 9;
+      background: transparent;
+    }
+    .popover-overlay[hidden] { display: none; }
+    .popover {
+      position: absolute;
+      top: 44px;
+      min-width: 240px; max-width: 360px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-pop);
+      padding: 4px;
+      z-index: 10;
+    }
+    .popover[hidden] { display: none; }
+    .popover-header {
+      padding: 8px 10px 6px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+    .popover-body { max-height: 360px; overflow-y: auto; }
+    .menu-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      background: transparent; border: 0;
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .menu-item:hover { background: var(--bg-hover); }
+    .menu-item svg { width: 14px; height: 14px; color: var(--text-secondary); flex-shrink: 0; }
+    .menu-item .menu-meta { color: var(--text-tertiary); font-size: 11px; margin-left: auto; }
+    .menu-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+    .recent-row {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%;
+      padding: 8px 6px 8px 10px;
+      background: transparent; border: 0;
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+    .recent-row:hover { background: var(--bg-hover); }
+    .recent-row.active { background: var(--accent-bg); }
+    .recent-row-menu-btn {
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0;
+      border-radius: 3px;
+      color: var(--text-tertiary);
+      opacity: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: opacity 0.1s;
+    }
+    .recent-row:hover .recent-row-menu-btn { opacity: 1; }
+    .recent-row-menu-btn:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+    .recent-row-menu-btn.active { opacity: 1; background: var(--bg-surface-2); color: var(--text-primary); }
+    .recent-row-menu-btn svg { width: 12px; height: 12px; }
+
+    /* Floating row menu (anchored to the 3-dot button) */
+    .row-menu {
+      position: fixed;
+      min-width: 160px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-pop);
+      padding: 4px;
+      z-index: 12;
+    }
+    .row-menu[hidden] { display: none; }
+    .menu-item.destructive { color: var(--danger); }
+    .menu-item.destructive svg { color: var(--danger); }
+    .menu-item.destructive:hover { background: rgba(239, 68, 68, 0.1); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 20;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-pop);
+      width: 100%;
+      max-width: 360px;
+      padding: 20px;
+    }
+    .modal-title {
+      font-size: 15px; font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+    }
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin: 0 0 18px;
+      line-height: 1.5;
+    }
+    .modal-body strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .modal-actions {
+      display: flex; gap: 8px;
+      justify-content: flex-end;
+    }
+    .btn.btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+    .btn.btn-danger:hover { background: #DC2626; }
+    .btn.btn-danger:active { background: #B91C1C; }
+    .recent-icon {
+      width: 8px; height: 8px; border-radius: 4px;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .recent-icon.relay { background: var(--accent); }
+    .recent-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .recent-title-row {
+      display: flex; align-items: baseline; gap: 8px;
+      min-width: 0;
+    }
+    .recent-title {
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--text-primary);
+    }
+    .recent-meta { color: var(--text-tertiary); font-size: 10px; flex-shrink: 0; }
+    .recent-snippet {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .recent-empty {
+      padding: 24px 12px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* Footer */
+    footer.app-footer {
+      flex-shrink: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-tertiary);
+      background: var(--bg-canvas);
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo" id="logoMark"></div>
+    <div class="tab-strip" id="tabStrip"></div>
+    <div class="header-right">
+      <button class="icon-btn" id="newChatBtn" title="New chat">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 8h12M8 2v12"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="recentBtn" title="Recent sessions">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="6"/>
+          <path d="M8 4.5V8l2.5 1.5"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="overflowBtn" title="More">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="3.5" cy="8" r="1.4"/>
+          <circle cx="8" cy="8" r="1.4"/>
+          <circle cx="12.5" cy="8" r="1.4"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Home: shown when no tabs are open -->
+    <section id="view-home" class="view">
+      <div class="home-hero">
+        <div class="home-mark"></div>
+        <h2 class="home-title">Relay is ready</h2>
+        <p class="home-sub">Open Claude Code and ask it about this Figma file, or start a chat right here.</p>
+      </div>
+      <div class="home-status">
+        <span class="status-dot" id="homeDot"></span>
+        <div style="flex:1;">
+          <div style="color: var(--text-primary); font-size: 12px;" id="homeStatusText">Worker idle</div>
+          <div style="color: var(--text-tertiary); font-size: 11px;" id="homeSubText">Polling http://127.0.0.1:9226 for tasks</div>
+        </div>
+      </div>
+      <div class="home-cta" id="homeChatCta">
+        <div>
+          <div class="home-cta-title">Want to chat directly?</div>
+          <div class="home-cta-sub">Add an Anthropic API key to talk to a Haiku agent right here in Figma.</div>
+        </div>
+        <button class="btn btn-ghost" id="homeChatBtn">Set up chat</button>
+      </div>
+    </section>
+
+    <!-- Tab content: chat thread or relay activity feed -->
+    <section id="view-tab" class="view">
+      <div id="tabContent" class="thread"></div>
+      <div class="dock" id="chatDock">
+        <div class="input-wrap">
+          <textarea id="chatInput" rows="1" placeholder="Ask Relay anything about this file..."></textarea>
+          <button class="send-btn" id="sendBtn" title="Send (⌘↵)">
+            <svg viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 14L14 8 2 2v5l8 1-8 1v5z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">
+          <span id="modeHint">Connected</span>
+          <span>⌘↵ to send</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Setup: BYOK API key entry -->
+    <section id="view-setup" class="view">
+      <div class="setup-card">
+        <div class="setup-icon" id="setupMark"></div>
+        <h1 class="setup-title">Set up chat mode</h1>
+        <p class="setup-sub">Optional. Add an Anthropic API key to chat with Relay directly inside Figma. The Claude Code bridge works without one.</p>
+        <div class="field">
+          <label for="setupKey">Anthropic API Key</label>
+          <input type="password" id="setupKey" placeholder="sk-ant-api03-..." autocomplete="off"/>
+          <p class="helper">
+            Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+            Stored only on your device.
+          </p>
+        </div>
+        <button class="btn btn-block" id="setupSaveBtn">Save and continue</button>
+        <button class="btn btn-block btn-ghost" id="setupBackBtn" style="margin-top:8px;">Back</button>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="view">
+      <div style="padding: 14px 18px 0;">
+        <button class="btn btn-ghost" id="settingsBackBtn">← Back</button>
+      </div>
+      <div style="padding: 16px 18px;">
+        <div class="settings-section">
+          <h3>API Key</h3>
+          <div class="key-row">
+            <div class="key-display empty" id="keyDisplay">No key set</div>
+            <button class="btn btn-ghost" id="changeKeyBtn">Change</button>
+            <button class="btn btn-ghost" id="clearKeyBtn">Clear</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Model</h3>
+          <div class="toggle-row" style="border:0; padding-top:0;">
+            <div class="toggle-label">
+              <span class="name">Model</span>
+              <span class="desc">Used for chat and agent reasoning</span>
+            </div>
+            <select id="modelSelect">
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fast, cheap)</option>
+              <option value="claude-sonnet-4-6">Sonnet 4.6 (balanced)</option>
+              <option value="claude-opus-4-7">Opus 4.7 (smartest)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Worker mode</h3>
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <span class="name">Poll localhost relay</span>
+              <span class="desc">Receive tasks from external orchestrators (e.g. Claude Code) on 127.0.0.1:9226</span>
+            </div>
+            <div class="toggle" id="workerToggle"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Sessions</h3>
+          <button class="btn btn-ghost" id="clearSessionsBtn">Clear all chats</button>
+          <p class="helper" style="margin-top: 8px;">Removes all chat history except the Claude Code Relay activity feed.</p>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+            Relay lets a Claude agent operate directly on the file you have open. Tools are scoped to a safe whitelist of figma.* APIs.
+          </p>
+          <p style="color: var(--text-tertiary); font-size: 11px; margin: 8px 0 0;">
+            v0.2.0 · <a href="https://github.com/" target="_blank">Source</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Popovers -->
+  <div class="popover-overlay" id="popoverOverlay" hidden></div>
+  <div class="popover" id="recentPopover" hidden style="right: 38px;">
+    <div class="popover-header">Recent sessions</div>
+    <div class="popover-body" id="recentList"></div>
+  </div>
+  <!-- Floating per-row menu (Recent Sessions) -->
+  <div class="row-menu" id="rowMenu" hidden>
+    <button class="menu-item destructive" id="menuDeleteChat">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 4h10M6 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M5 4l1 9a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1l1-9"/>
+      </svg>
+      Delete chat
+    </button>
+  </div>
+
+  <!-- Confirmation modal for destructive actions -->
+  <div class="modal-overlay" id="confirmModal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="modalTitle" aria-describedby="modalBody">
+      <h2 class="modal-title" id="modalTitle">Delete this chat?</h2>
+      <p class="modal-body" id="modalBody">This permanently removes <strong id="modalChatName"></strong>. This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn btn-danger" id="modalConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="popover" id="overflowPopover" hidden style="right: 8px; min-width: 200px;">
+    <button class="menu-item" id="menuChatSetup">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
+      <span id="menuChatSetupText">Set up chat key</span>
+    </button>
+    <button class="menu-item" id="menuSettings">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="1.6"/>
+        <path d="M13 8a5 5 0 0 0-.1-1l1.3-1-1.3-2.2-1.6.4a5 5 0 0 0-1.7-1L9.3 1.5h-2.6L6.4 3.2a5 5 0 0 0-1.7 1l-1.6-.4-1.3 2.2 1.3 1a5 5 0 0 0 0 2l-1.3 1 1.3 2.2 1.6-.4a5 5 0 0 0 1.7 1l.3 1.7h2.6l.3-1.7a5 5 0 0 0 1.7-1l1.6.4 1.3-2.2-1.3-1A5 5 0 0 0 13 8Z"/>
+      </svg>
+      Settings
+    </button>
+  </div>
+
+  <footer class="app-footer">
+    <span id="footerLeft">Relay</span>
+    <span id="footerRight"></span>
+  </footer>
+
+  <script>
+    // -------------------------------------------------------------------
+    // Logo SVG (mark only, embedded so the plugin needs no asset fetch)
+    // -------------------------------------------------------------------
+    const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="350 800 320 440">
+<defs>
+  <linearGradient id="lg1" gradientUnits="userSpaceOnUse" x1="476.785" y1="1063.29" x2="575.194" y2="983.682">
+    <stop offset="0" stop-color="rgb(220,197,254)"/><stop offset="1" stop-color="rgb(254,214,254)"/>
+  </linearGradient>
+  <linearGradient id="lg2" gradientUnits="userSpaceOnUse" x1="441.632" y1="1157.12" x2="621.562" y2="1025.81">
+    <stop offset="0" stop-color="rgb(150,102,253)"/><stop offset="1" stop-color="rgb(230,117,252)"/>
+  </linearGradient>
+  <linearGradient id="lg3" gradientUnits="userSpaceOnUse" x1="439.557" y1="1025.7" x2="607.251" y2="885.482">
+    <stop offset="0" stop-color="rgb(178,105,250)"/><stop offset="1" stop-color="rgb(255,127,254)"/>
+  </linearGradient>
+</defs>
+<path fill="url(#lg3)" d="M 441.878 1023.44 C 427.483 1008.93 389.923 977.707 390.376 958.7 C 390.537 952.776 392.431 947.03 395.824 942.171 C 402.913 931.936 431.188 905.749 441.625 895.007 C 459.921 876.177 480.23 856.391 499.054 837.834 C 508.095 828.921 516.483 825.752 529.316 826.21 C 534.718 826.402 543.963 829.268 548.01 832.804 C 563.603 846.427 579.314 862.817 593.977 877.547 C 614.168 897.829 634.747 917.647 654.122 938.605 C 659.783 944.727 662.93 952.325 662.379 961.096 C 661.128 981.005 632.452 999.555 619.805 1014.39 C 617.141 1017.51 612.594 1021.27 610.743 1024.72 C 621.479 1033.63 630.448 1043.53 640.609 1052.97 C 655.472 1066.4 673.017 1087.21 655.102 1106.51 C 626.043 1137.82 594.887 1165.91 565.085 1196.86 C 546.009 1216.67 527.004 1233.3 500.086 1209.41 C 489.694 1200.18 477.529 1187.85 468.2 1177.33 C 458.775 1170.42 446.762 1154.79 437.35 1146.82 C 429.653 1138.7 421.044 1131.08 413.442 1122.9 C 399.74 1108.15 390.982 1104.93 390.474 1084.43 C 391.307 1077.09 394.019 1071.95 399.048 1066.61 C 412.821 1051.97 427.552 1037.85 441.881 1023.75 L 441.878 1023.44 z"/>
+<path fill="url(#lg2)" d="M 390.474 1084.43 C 391.307 1077.09 394.019 1071.95 399.048 1066.61 C 412.821 1051.97 427.552 1037.85 441.881 1023.75 L 485.446 1067.3 C 524.666 1106.42 527.557 1107.34 567.325 1067.71 C 581.564 1053.4 595.885 1039.17 610.287 1025.02 L 610.743 1024.72 C 621.479 1033.63 630.448 1043.53 640.609 1052.97 C 655.472 1066.4 673.017 1087.21 655.102 1106.51 C 626.043 1137.82 594.887 1165.91 565.085 1196.86 C 546.009 1216.67 527.004 1233.3 500.086 1209.41 C 489.694 1200.18 477.529 1187.85 468.2 1177.33 C 458.775 1170.42 446.762 1154.79 437.35 1146.82 C 429.653 1138.7 421.044 1131.08 413.442 1122.9 C 399.74 1108.15 390.982 1104.93 390.474 1084.43 z"/>
+<path fill="rgb(152,98,254)" d="M 390.474 1084.43 C 399.641 1091.67 417.084 1109.95 416.252 1122.73 C 427.364 1136.31 443.222 1137.24 450.285 1156.29 C 450.183 1156.01 467.358 1173.64 469.265 1175.78 L 468.2 1177.33 C 458.775 1170.42 446.762 1154.79 437.35 1146.82 C 429.653 1138.7 421.044 1131.08 413.442 1122.9 C 399.74 1108.15 390.982 1104.93 390.474 1084.43 z"/>
+<path fill="url(#lg1)" d="M 441.878 1023.44 L 482.422 983.439 C 507.669 958.316 526.06 934.278 557.702 970.78 C 565.364 979.619 608.627 1018.81 610.287 1025.02 C 595.885 1039.17 581.564 1053.4 567.325 1067.71 C 527.557 1107.34 524.666 1106.42 485.446 1067.3 L 441.881 1023.75 L 441.878 1023.44 z"/>
+</svg>`;
+    document.getElementById('logoMark').innerHTML = LOGO_SVG;
+    document.getElementById('setupMark').innerHTML = LOGO_SVG;
+    document.querySelector('.home-mark').innerHTML = LOGO_SVG;
+
+    // -------------------------------------------------------------------
+    // Constants
+    // -------------------------------------------------------------------
+    const RELAY = 'http://127.0.0.1:9226';
+    const POLL_TIMEOUT_MS = 25000;
+    const MAX_TURNS = 30;
+    const RELAY_CHAT_ID = '__relay__';
+    const RELAY_CHAT_TITLE = 'Claude Code Relay';
+    const RELAY_MAX_EVENTS = 200;
+    const RECENT_LIMIT = 12;
+
+    // -------------------------------------------------------------------
+    // State
+    //   chats: { [id]: { id, title, kind: 'chat'|'relay', thread: [...], messages: [...],
+    //                    createdAt, updatedAt, busy, unread } }
+    //   openTabs: ordered array of chat ids
+    //   activeTab: chat id or null
+    //   view: 'home' | 'tab' | 'setup' | 'settings'
+    // -------------------------------------------------------------------
+    const state = {
+      apiKey: null,
+      model: 'claude-haiku-4-5-20251001',
+      workerOn: true,
+      view: 'home',
+      chats: {},
+      openTabs: [],
+      activeTab: null,
+      workerStatus: { state: '', label: 'Worker idle', sub: 'Polling http://127.0.0.1:9226 for tasks' },
+    };
+
+    // -------------------------------------------------------------------
+    // Tool whitelist (matches code.js sandbox handlers)
+    // -------------------------------------------------------------------
+    const TOOLS = [
+      { name: 'figma_search_components',
+        description: 'Search COMPONENT and COMPONENT_SET nodes by name substring (case-insensitive). Pass query="" to match every component/set in the file. limit caps results (default 20, max 200) — this tool is for finding specific atoms, NOT for counting; for counts/totals use figma_execute.',
+        input_schema: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'integer', default: 20 } }, required: ['query'] } },
+      { name: 'figma_find_node',
+        description: 'Look up a node by id. Returns type, dimensions, child count.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+      { name: 'figma_export_node',
+        description: 'Export a node as PNG/JPG/SVG/PDF base64.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, format: { type: 'string', enum: ['PNG','JPG','SVG','PDF'], default: 'PNG' }, scale: { type: 'number', default: 1 } }, required: ['id'] } },
+      { name: 'figma_set_text',
+        description: 'Replace the text of a TEXT node.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } }, required: ['id', 'text'] } },
+      { name: 'figma_set_fills',
+        description: 'Replace the fills array of a node. fills is the standard Figma Paint[] structure.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, fills: { type: 'array' } }, required: ['id', 'fills'] } },
+      { name: 'figma_set_strokes',
+        description: 'Replace the strokes array of a node.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, strokes: { type: 'array' } }, required: ['id', 'strokes'] } },
+      { name: 'figma_set_instance_properties',
+        description: 'Set component properties on an INSTANCE.',
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, properties: { type: 'object' } }, required: ['id', 'properties'] } },
+      { name: 'figma_execute',
+        description: 'Escape hatch: run arbitrary async JS with `figma` in scope. Code must `return` a JSON-serializable result.',
+        input_schema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] } },
+    ];
+    const TOOL_NAME_MAP = Object.fromEntries(TOOLS.map((t) => [t.name, t.name.replace(/^figma_/, 'figma.')]));
+
+    const SYSTEM_PROMPT = [
+      "You are Relay, a Claude agent running inside the Figma desktop app as a plugin.",
+      "You have direct figma.* API access via the tools below — no MCP server, no HTTP round-trips for figma calls.",
+      "",
+      "Style your replies for a chat UI: concise, scannable, markdown-friendly. Use lists and headings only when they help. Don't narrate every tool call — let the inline tool cards speak for themselves, then summarize results plainly.",
+      "",
+      "Conventions:",
+      "- Use figma_search_components when you need to *find specific atoms by name* (e.g. \"the Button component\"). It is capped (default 20 results) and not suited for counting.",
+      "- For counts, totals, page inventories, or anything that walks the whole file, use figma_execute. Always call `await figma.loadAllPagesAsync()` first, then iterate `figma.root.children` and use `page.findAll(...)`.",
+      "- For audits or sweeps, batch reads with figma_execute (one call that walks many nodes) instead of many find_node calls.",
+      "- An empty query in figma_search_components matches every component/set — useful for sampling, not for counting.",
+      "- If a search returns 0 results, do not conclude \"no components exist\" — try again with an empty query, or use figma_execute to count directly.",
+      "- Bind paints to variables when possible; raw hex fills are a regression in DV's Foundry design system.",
+      "- Be honest in the final report: distinguish what you changed from what you only inspected.",
+    ].join('\n');
+
+    const SUGGESTIONS = [
+      "List the top-level pages in this file.",
+      "Search for components named 'Button' and show the first 5.",
+      "Audit the current page: count text nodes, frames, and instances.",
+      "Export the currently selected node as PNG.",
+    ];
+
+    // -------------------------------------------------------------------
+    // Sandbox bridge
+    // -------------------------------------------------------------------
+    const pendingCalls = new Map();
+    let nextCallId = 1;
+    onmessage = (e) => {
+      const msg = e.data.pluginMessage;
+      if (!msg) return;
+      if (msg.kind === 'tool_result' || msg.kind === 'storage_result') {
+        const pending = pendingCalls.get(msg.callId);
+        if (!pending) return;
+        pendingCalls.delete(msg.callId);
+        pending.resolve(msg);
+      }
+    };
+    function sandboxCall(kind, payload) {
+      const callId = nextCallId++;
+      return new Promise((resolve) => {
+        pendingCalls.set(callId, { resolve });
+        parent.postMessage({ pluginMessage: { kind, callId, ...payload } }, '*');
+      });
+    }
+    const callTool = (name, input) => sandboxCall('tool_call', { name, input });
+    const storageGet = (key) => sandboxCall('storage_get', { key });
+    const storageSet = (key, value) => sandboxCall('storage_set', { key, value });
+    const storageDelete = (key) => sandboxCall('storage_delete', { key });
+    const resizeWindow = (w, h) => parent.postMessage({ pluginMessage: { kind: 'resize', width: w, height: h } }, '*');
+
+    // -------------------------------------------------------------------
+    // Markdown (minimal, safe-by-construction)
+    // -------------------------------------------------------------------
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+    function renderMd(text) {
+      if (!text) return '';
+      const blocks = [];
+      let src = text.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, body) => {
+        const i = blocks.length;
+        blocks.push('<pre><code>' + escapeHtml(body.replace(/\n$/, '')) + '</code></pre>');
+        return `\u0000${i}\u0000`;
+      });
+      src = escapeHtml(src);
+      src = src.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[+i]);
+      src = src.replace(/`([^`\n]+)`/g, (_, c) => '<code>' + c + '</code>');
+      src = src.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+      src = src.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+      src = src.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      src = src.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      src = src.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      src = src.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+      src = src.replace(/(^|\n)((?:- .+(?:\n|$))+)/g, (_, lead, block) => {
+        const items = block.trim().split('\n').map((l) => '<li>' + l.replace(/^- /, '') + '</li>').join('');
+        return lead + '<ul>' + items + '</ul>';
+      });
+      src = src.replace(/(^|\n)((?:\d+\. .+(?:\n|$))+)/g, (_, lead, block) => {
+        const items = block.trim().split('\n').map((l) => '<li>' + l.replace(/^\d+\. /, '') + '</li>').join('');
+        return lead + '<ol>' + items + '</ol>';
+      });
+      const paras = src.split(/\n\n+/).map((p) => {
+        if (/^<(h\d|ul|ol|pre)/.test(p.trim())) return p;
+        return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+      });
+      return paras.join('\n');
+    }
+
+    // -------------------------------------------------------------------
+    // Chat / tab management
+    // -------------------------------------------------------------------
+    function newChatId() {
+      return 'chat-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    }
+    function getOrCreateRelayChat() {
+      if (!state.chats[RELAY_CHAT_ID]) {
+        state.chats[RELAY_CHAT_ID] = {
+          id: RELAY_CHAT_ID,
+          title: RELAY_CHAT_TITLE,
+          kind: 'relay',
+          thread: [],
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          busy: false,
+          unread: 0,
+        };
+      }
+      return state.chats[RELAY_CHAT_ID];
+    }
+    function createChat() {
+      const id = newChatId();
+      state.chats[id] = {
+        id,
+        title: 'New chat',
+        kind: 'chat',
+        thread: [],
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        busy: false,
+        unread: 0,
+      };
+      return state.chats[id];
+    }
+    function openTab(id) {
+      if (!state.chats[id]) return;
+      if (!state.openTabs.includes(id)) state.openTabs.push(id);
+      state.activeTab = id;
+      state.chats[id].unread = 0;
+      state.view = 'tab';
+      renderAll();
+      persist();
+    }
+    function closeTab(id) {
+      const idx = state.openTabs.indexOf(id);
+      if (idx < 0) return;
+      state.openTabs.splice(idx, 1);
+      if (state.activeTab === id) {
+        state.activeTab = state.openTabs[idx] || state.openTabs[idx - 1] || state.openTabs[state.openTabs.length - 1] || null;
+      }
+      if (!state.activeTab) state.view = 'home';
+      renderAll();
+      persist();
+    }
+    function activeChat() {
+      return state.activeTab ? state.chats[state.activeTab] : null;
+    }
+    function touchChat(chat) {
+      chat.updatedAt = Date.now();
+    }
+
+    // -------------------------------------------------------------------
+    // Persistence
+    // -------------------------------------------------------------------
+    let persistTimer = null;
+    function persist() {
+      if (persistTimer) return;
+      persistTimer = setTimeout(async () => {
+        persistTimer = null;
+        try {
+          await Promise.all([
+            storageSet('chats', state.chats),
+            storageSet('openTabs', state.openTabs),
+            storageSet('activeTab', state.activeTab),
+          ]);
+        } catch (e) { /* best-effort */ }
+      }, 250);
+    }
+
+    // -------------------------------------------------------------------
+    // Rendering
+    // -------------------------------------------------------------------
+    function renderAll() {
+      renderTabs();
+      renderView();
+    }
+
+    function renderTabs() {
+      const strip = document.getElementById('tabStrip');
+      strip.innerHTML = '';
+      for (const id of state.openTabs) {
+        const chat = state.chats[id];
+        if (!chat) continue;
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (state.activeTab === id && state.view === 'tab' ? ' active' : '');
+        const dotClass = chat.kind === 'relay'
+          ? (state.workerStatus.state || 'ok')
+          : (chat.busy ? 'busy' : (chat.unread ? 'unread' : ''));
+        tab.innerHTML = `
+          <span class="tab-dot ${dotClass}"></span>
+          <span class="tab-name">${escapeHtml(chat.title || 'New chat')}</span>
+          <button class="tab-close" data-close="${id}" title="Close tab">
+            <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2l6 6M8 2l-6 6"/></svg>
+          </button>
+        `;
+        tab.onclick = (e) => {
+          if (e.target.closest('[data-close]')) return;
+          openTab(id);
+        };
+        const closeBtn = tab.querySelector('[data-close]');
+        if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); closeTab(id); };
+        strip.appendChild(tab);
+      }
+    }
+
+    const views = ['home', 'tab', 'setup', 'settings'];
+    function renderView() {
+      views.forEach((v) => {
+        document.getElementById('view-' + v).classList.toggle('active', v === state.view);
+      });
+      // Header chrome
+      const newChatBtn = document.getElementById('newChatBtn');
+      const recentBtn = document.getElementById('recentBtn');
+      const overflowBtn = document.getElementById('overflowBtn');
+      const inSettings = state.view === 'settings';
+      const inSetup = state.view === 'setup';
+      newChatBtn.style.display = (inSettings || inSetup) ? 'none' : '';
+      recentBtn.style.display = (inSettings || inSetup) ? 'none' : '';
+      overflowBtn.style.display = (inSettings || inSetup) ? 'none' : '';
+
+      if (state.view === 'tab') renderTabContent();
+      if (state.view === 'home') renderHome();
+    }
+
+    function renderHome() {
+      const dot = document.getElementById('homeDot');
+      dot.className = 'status-dot ' + (state.workerStatus.state || '');
+      document.getElementById('homeStatusText').textContent = state.workerStatus.label;
+      document.getElementById('homeSubText').textContent = state.workerStatus.sub;
+
+      const cta = document.getElementById('homeChatCta');
+      const titleEl = cta.querySelector('.home-cta-title');
+      const subEl = cta.querySelector('.home-cta-sub');
+      const btn = document.getElementById('homeChatBtn');
+      if (state.apiKey) {
+        titleEl.textContent = 'Chat mode is set up';
+        subEl.textContent = 'Talk to a Haiku agent right here in Figma.';
+        btn.textContent = 'New chat';
+      } else {
+        titleEl.textContent = 'Want to chat directly?';
+        subEl.textContent = 'Add an Anthropic API key to talk to a Haiku agent right here in Figma.';
+        btn.textContent = 'Set up chat';
+      }
+    }
+
+    function renderTabContent() {
+      const chat = activeChat();
+      const content = document.getElementById('tabContent');
+      const dock = document.getElementById('chatDock');
+      content.innerHTML = '';
+      if (!chat) {
+        dock.hidden = true;
+        return;
+      }
+      if (chat.kind === 'relay') {
+        dock.hidden = true;
+        renderRelayThread(chat, content);
+      } else {
+        dock.hidden = false;
+        renderChatThread(chat, content);
+      }
+    }
+
+    function renderChatThread(chat, container) {
+      if (chat.thread.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+          <div class="empty-mark">${LOGO_SVG}</div>
+          <h2 class="empty-greeting">How can I help with this file?</h2>
+          <p class="empty-sub">Ask anything about your Figma document.</p>
+          <div class="suggestions">
+            ${SUGGESTIONS.map((s, i) => `<button class="suggestion" data-i="${i}">${escapeHtml(s)}</button>`).join('')}
+          </div>
+        `;
+        container.appendChild(empty);
+        empty.querySelectorAll('.suggestion').forEach((btn) => {
+          btn.onclick = () => {
+            document.getElementById('chatInput').value = SUGGESTIONS[+btn.dataset.i];
+            sendMessage();
+          };
+        });
+        return;
+      }
+      for (const item of chat.thread) {
+        container.appendChild(renderThreadItem(item));
+      }
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function renderRelayThread(chat, container) {
+      if (chat.thread.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'relay-empty';
+        empty.textContent = 'No relay activity yet. Tasks from Claude Code will appear here.';
+        container.appendChild(empty);
+        return;
+      }
+      for (const item of chat.thread) {
+        const el = document.createElement('div');
+        el.className = 'relay-event ' + (item.subkind || '');
+        el.innerHTML = `<span class="relay-event-time">${escapeHtml(formatTime(item.t))}</span><span class="relay-event-text">${escapeHtml(item.text)}</span>`;
+        container.appendChild(el);
+      }
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function renderThreadItem(item) {
+      const el = document.createElement('div');
+      if (item.kind === 'user') {
+        el.className = 'msg-user';
+        el.textContent = item.text;
+      } else if (item.kind === 'assistant') {
+        el.className = 'msg-assistant';
+        const md = document.createElement('div');
+        md.className = 'md';
+        md.innerHTML = renderMd(item.text || '');
+        if (item.streaming) md.appendChild(Object.assign(document.createElement('span'), { className: 'cursor' }));
+        el.appendChild(md);
+      } else if (item.kind === 'tool') {
+        el.className = 'tool-call' + (item.open ? ' open' : '');
+        el.innerHTML = `
+          <div class="tool-call-header">
+            <svg class="tool-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2l4 4-4 4"/></svg>
+            <span class="tool-name">${escapeHtml(item.name)}</span>
+            <span class="tool-status ${item.status || ''}">${item.status === 'running' ? 'Running' : item.status === 'error' ? 'Error' : 'Done'}</span>
+          </div>
+          <div class="tool-body">
+            <div class="tool-body-label">Input</div>
+            <pre>${escapeHtml(JSON.stringify(item.input, null, 2))}</pre>
+            ${item.output !== undefined ? `<div class="tool-body-label">Output</div><pre>${escapeHtml(typeof item.output === 'string' ? item.output : JSON.stringify(item.output, null, 2))}</pre>` : ''}
+          </div>
+        `;
+        el.querySelector('.tool-call-header').onclick = () => {
+          item.open = !item.open;
+          el.classList.toggle('open', item.open);
+        };
+      } else if (item.kind === 'error') {
+        el.className = 'error-msg';
+        el.textContent = item.text;
+      }
+      return el;
+    }
+
+    function formatTime(t) {
+      const d = new Date(t);
+      return d.toTimeString().slice(0, 8);
+    }
+
+    function appendChatItem(chat, item) {
+      chat.thread.push(item);
+      touchChat(chat);
+      if (state.view === 'tab' && state.activeTab === chat.id) renderTabContent();
+      persist();
+      return item;
+    }
+    function updateLastAssistant(chat, text, opts = {}) {
+      const last = [...chat.thread].reverse().find((i) => i.kind === 'assistant');
+      if (!last) return;
+      last.text = text;
+      if (opts.streaming !== undefined) last.streaming = opts.streaming;
+      if (state.view === 'tab' && state.activeTab === chat.id) renderTabContent();
+    }
+
+    function pushRelayEvent(subkind, text) {
+      const chat = getOrCreateRelayChat();
+      chat.thread.push({ t: Date.now(), subkind, text });
+      while (chat.thread.length > RELAY_MAX_EVENTS) chat.thread.shift();
+      touchChat(chat);
+      // Auto-open and focus the relay tab — incoming Claude Code activity is
+      // exactly when the user wants to be looking at this feed.
+      if (!state.openTabs.includes(chat.id)) state.openTabs.unshift(chat.id);
+      // Only steal focus from the home view or a non-busy chat — if the user
+      // is mid-stream in another conversation, leave them alone and just bump
+      // the unread count.
+      const activeChatRef = activeChat();
+      const safeToFocus = state.view !== 'tab' || !activeChatRef || (!activeChatRef.busy && activeChatRef.id !== chat.id);
+      if (safeToFocus) {
+        state.activeTab = chat.id;
+        state.view = 'tab';
+        chat.unread = 0;
+      } else if (state.activeTab !== chat.id) {
+        chat.unread = (chat.unread || 0) + 1;
+      }
+      renderAll();
+      persist();
+    }
+
+    // -------------------------------------------------------------------
+    // Anthropic API (streaming SSE)
+    // -------------------------------------------------------------------
+    async function callAnthropicStream(messages, onDelta, onToolUse) {
+      const body = {
+        model: state.model,
+        max_tokens: 8192,
+        stream: true,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        tools: TOOLS.map((t, i) => i === TOOLS.length - 1 ? { ...t, cache_control: { type: 'ephemeral' } } : t),
+        messages,
+      };
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': state.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const text = await r.text();
+        throw new Error('Anthropic ' + r.status + ': ' + text);
+      }
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const blocks = [];
+      let stopReason = null;
+      let usage = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const event = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const dataLine = event.split('\n').find((l) => l.startsWith('data: '));
+          if (!dataLine) continue;
+          const payload = JSON.parse(dataLine.slice(6));
+          if (payload.type === 'content_block_start') {
+            blocks[payload.index] = payload.content_block.type === 'text'
+              ? { type: 'text', text: '' }
+              : payload.content_block.type === 'tool_use'
+              ? { type: 'tool_use', id: payload.content_block.id, name: payload.content_block.name, input: '' }
+              : { ...payload.content_block };
+          } else if (payload.type === 'content_block_delta') {
+            const b = blocks[payload.index];
+            if (payload.delta.type === 'text_delta') {
+              b.text += payload.delta.text;
+              onDelta && onDelta(b.text);
+            } else if (payload.delta.type === 'input_json_delta') {
+              b.input += payload.delta.partial_json;
+            }
+          } else if (payload.type === 'content_block_stop') {
+            const b = blocks[payload.index];
+            if (b.type === 'tool_use') {
+              try { b.input = b.input ? JSON.parse(b.input) : {}; } catch (e) { b.input = {}; }
+              onToolUse && onToolUse(b);
+            }
+          } else if (payload.type === 'message_delta') {
+            if (payload.delta.stop_reason) stopReason = payload.delta.stop_reason;
+            if (payload.usage) usage = { ...(usage || {}), ...payload.usage };
+          } else if (payload.type === 'message_start') {
+            usage = payload.message.usage;
+          }
+        }
+      }
+      return { content: blocks, stop_reason: stopReason, usage };
+    }
+
+    // -------------------------------------------------------------------
+    // Chat send loop (operates on the active chat tab)
+    // -------------------------------------------------------------------
+    async function sendMessage() {
+      const chat = activeChat();
+      if (!chat || chat.kind !== 'chat' || chat.busy) return;
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      if (!state.apiKey) {
+        state.view = 'setup';
+        renderView();
+        return;
+      }
+      input.value = '';
+      input.style.height = 'auto';
+
+      chat.busy = true;
+      renderTabs();
+      updateSendBtn();
+      chat.messages.push({ role: 'user', content: text });
+      appendChatItem(chat, { kind: 'user', text });
+
+      // First user message becomes the tab title.
+      if (chat.title === 'New chat') {
+        chat.title = text.length > 32 ? text.slice(0, 30).trim() + '…' : text;
+        renderTabs();
+      }
+
+      try {
+        for (let turn = 0; turn < MAX_TURNS; turn++) {
+          const assistantItem = appendChatItem(chat, { kind: 'assistant', text: '', streaming: true });
+          const toolUseItems = new Map();
+
+          const resp = await callAnthropicStream(
+            chat.messages,
+            (txt) => updateLastAssistant(chat, txt, { streaming: true }),
+            (toolUse) => {
+              const item = appendChatItem(chat, { kind: 'tool', name: toolUse.name, input: toolUse.input, status: 'running', open: false });
+              toolUseItems.set(toolUse.id, item);
+            }
+          );
+
+          if (resp.content.length === 0 || (resp.content.every((b) => b.type !== 'text' || !b.text))) {
+            chat.thread = chat.thread.filter((i) => i !== assistantItem);
+          } else {
+            assistantItem.streaming = false;
+          }
+          if (state.view === 'tab' && state.activeTab === chat.id) renderTabContent();
+
+          chat.messages.push({ role: 'assistant', content: resp.content });
+
+          if (resp.stop_reason !== 'tool_use') {
+            updateFooter(resp.usage);
+            break;
+          }
+
+          const toolResults = [];
+          const toolUses = resp.content.filter((b) => b.type === 'tool_use');
+          for (const use of toolUses) {
+            const sandboxName = TOOL_NAME_MAP[use.name] || use.name;
+            const reply = await callTool(sandboxName, use.input);
+            const item = toolUseItems.get(use.id);
+            if (item) {
+              item.status = reply.ok ? 'done' : 'error';
+              item.output = reply.ok ? reply.result : reply.error;
+            }
+            if (state.view === 'tab' && state.activeTab === chat.id) renderTabContent();
+            if (reply.ok) {
+              toolResults.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(reply.result) });
+            } else {
+              toolResults.push({ type: 'tool_result', tool_use_id: use.id, is_error: true, content: reply.error });
+            }
+          }
+          chat.messages.push({ role: 'user', content: toolResults });
+        }
+      } catch (err) {
+        appendChatItem(chat, { kind: 'error', text: err.message || String(err) });
+      } finally {
+        chat.busy = false;
+        renderTabs();
+        updateSendBtn();
+        persist();
+      }
+    }
+
+    function updateSendBtn() {
+      const btn = document.getElementById('sendBtn');
+      const input = document.getElementById('chatInput');
+      const chat = activeChat();
+      const busy = chat ? chat.busy : false;
+      btn.disabled = busy || !input.value.trim();
+    }
+    function updateFooter(usage) {
+      if (!usage) return;
+      document.getElementById('footerRight').textContent =
+        `in ${usage.input_tokens || 0} · out ${usage.output_tokens || 0}` +
+        (usage.cache_read_input_tokens ? ` · cache ${usage.cache_read_input_tokens}` : '');
+    }
+
+    // -------------------------------------------------------------------
+    // Worker mode (long-poll relay) → writes to Claude Code Relay tab
+    // -------------------------------------------------------------------
+    let workerAbort = null;
+
+    function setWorkerStatus(stateKey, label, sub) {
+      state.workerStatus = { state: stateKey, label, sub };
+      if (state.view === 'home') renderHome();
+      renderTabs();
+    }
+
+    async function workerLoop(signal) {
+      setWorkerStatus('ok', 'Worker idle', 'Polling http://127.0.0.1:9226 for tasks');
+      while (!signal.aborted) {
+        try {
+          const r = await fetch(RELAY + '/tasks/next?timeout=' + POLL_TIMEOUT_MS, { signal });
+          if (signal.aborted) return;
+          if (r.status === 204) continue;
+          if (!r.ok) { pushRelayEvent('err', 'poll status ' + r.status); await sleep(2000); continue; }
+          const task = await r.json();
+          const kind = task.kind || (task.tool ? 'tool' : 'instruction');
+          const summary = kind === 'tool'
+            ? `${task.tool}(${JSON.stringify(task.input || {}).slice(0, 80)})`
+            : (task.instruction || '').slice(0, 100);
+          pushRelayEvent('task', `${kind} ${task.id.slice(0, 8)} — ${summary}`);
+          setWorkerStatus('busy', kind === 'tool' ? 'Running tool' : 'Running task', task.id.slice(0, 8));
+          try {
+            let resultPayload;
+            if (kind === 'tool') {
+              const sandboxName = TOOL_NAME_MAP[task.tool] || task.tool;
+              const reply = await callTool(sandboxName, task.input || {});
+              if (!reply.ok) throw new Error(reply.error || 'tool failed');
+              resultPayload = reply.result;
+              pushRelayEvent('ok', `tool ${task.tool} ok`);
+            } else {
+              if (!state.apiKey) throw new Error('no Anthropic API key set; use kind=tool for keyless calls');
+              let report = '';
+              const messages = [{ role: 'user', content: task.instruction }];
+              for (let turn = 0; turn < MAX_TURNS; turn++) {
+                const resp = await callAnthropicStream(messages, null, null);
+                messages.push({ role: 'assistant', content: resp.content });
+                const text = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+                if (text) report = text;
+                if (resp.stop_reason !== 'tool_use') break;
+                const toolResults = [];
+                for (const use of resp.content.filter((b) => b.type === 'tool_use')) {
+                  const sandboxName = TOOL_NAME_MAP[use.name] || use.name;
+                  const reply = await callTool(sandboxName, use.input);
+                  pushRelayEvent('ok', `tool ${use.name}`);
+                  if (reply.ok) toolResults.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(reply.result) });
+                  else toolResults.push({ type: 'tool_result', tool_use_id: use.id, is_error: true, content: reply.error });
+                }
+                messages.push({ role: 'user', content: toolResults });
+              }
+              resultPayload = report;
+            }
+            await fetch(`${RELAY}/tasks/${task.id}/result`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ status: 'done', result: resultPayload }),
+            });
+            pushRelayEvent('ok', `task ${task.id.slice(0, 8)} done`);
+          } catch (err) {
+            pushRelayEvent('err', `task failed: ${err.message}`);
+            await fetch(`${RELAY}/tasks/${task.id}/result`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ status: 'failed', error: err.message }),
+            });
+          }
+          setWorkerStatus('ok', 'Worker idle', 'Polling http://127.0.0.1:9226 for tasks');
+        } catch (err) {
+          if (signal.aborted) return;
+          pushRelayEvent('err', 'poll loop: ' + err.message);
+          setWorkerStatus('err', 'Relay unreachable', 'Is the relay server running on 9226?');
+          await sleep(3000);
+          setWorkerStatus('ok', 'Retrying...', 'Polling http://127.0.0.1:9226 for tasks');
+        }
+      }
+    }
+    function startWorker() {
+      if (workerAbort) return;
+      workerAbort = new AbortController();
+      workerLoop(workerAbort.signal);
+    }
+    function stopWorker() {
+      if (workerAbort) workerAbort.abort();
+      workerAbort = null;
+      setWorkerStatus('', 'Worker off', 'Toggle on in Settings to receive external tasks');
+    }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // -------------------------------------------------------------------
+    // Popovers
+    // -------------------------------------------------------------------
+    function closePopovers() {
+      document.getElementById('popoverOverlay').hidden = true;
+      document.getElementById('recentPopover').hidden = true;
+      document.getElementById('overflowPopover').hidden = true;
+      document.getElementById('recentBtn').classList.remove('active');
+      document.getElementById('overflowBtn').classList.remove('active');
+      closeRowMenu();
+    }
+
+    // Per-row menu (Recent Sessions overflow)
+    let rowMenuTargetId = null;
+    let rowMenuAnchorBtn = null;
+    function openRowMenu(btn, chatId) {
+      closeRowMenu();
+      rowMenuTargetId = chatId;
+      rowMenuAnchorBtn = btn;
+      btn.classList.add('active');
+      const menu = document.getElementById('rowMenu');
+      menu.hidden = false;
+      const r = btn.getBoundingClientRect();
+      const menuW = 160;
+      const left = Math.max(8, Math.min(window.innerWidth - menuW - 8, r.right - menuW));
+      const top = r.bottom + 4;
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+    }
+    function closeRowMenu() {
+      const menu = document.getElementById('rowMenu');
+      if (menu) menu.hidden = true;
+      if (rowMenuAnchorBtn) rowMenuAnchorBtn.classList.remove('active');
+      rowMenuTargetId = null;
+      rowMenuAnchorBtn = null;
+    }
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('rowMenu');
+      if (menu && !menu.hidden && !e.target.closest('#rowMenu') && !e.target.closest('.recent-row-menu-btn')) {
+        closeRowMenu();
+      }
+    });
+
+    // Destructive-action modal
+    let pendingDeleteId = null;
+    function showDeleteConfirm(id) {
+      const chat = state.chats[id];
+      if (!chat) return;
+      pendingDeleteId = id;
+      document.getElementById('modalChatName').textContent = chat.title || 'Untitled';
+      document.getElementById('confirmModal').hidden = false;
+      // Focus Cancel by default — destructive action requires deliberate click.
+      setTimeout(() => document.getElementById('modalCancel').focus(), 0);
+    }
+    function hideConfirmModal() {
+      document.getElementById('confirmModal').hidden = true;
+      pendingDeleteId = null;
+    }
+    function deleteChat(id) {
+      if (!state.chats[id]) return;
+      delete state.chats[id];
+      state.openTabs = state.openTabs.filter((x) => x !== id);
+      if (state.activeTab === id) {
+        state.activeTab = state.openTabs[0] || null;
+      }
+      if (!state.activeTab) state.view = 'home';
+      renderAll();
+      if (!document.getElementById('recentPopover').hidden) renderRecentList();
+      persist();
+    }
+
+    document.getElementById('menuDeleteChat').onclick = () => {
+      const id = rowMenuTargetId;
+      closeRowMenu();
+      if (id) showDeleteConfirm(id);
+    };
+    document.getElementById('modalCancel').onclick = hideConfirmModal;
+    document.getElementById('modalConfirm').onclick = () => {
+      const id = pendingDeleteId;
+      hideConfirmModal();
+      if (id) deleteChat(id);
+    };
+    // Click outside modal cancels (requires explicit Confirm to delete).
+    document.getElementById('confirmModal').addEventListener('click', (e) => {
+      if (e.target.id === 'confirmModal') hideConfirmModal();
+    });
+    // Escape cancels the modal.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !document.getElementById('confirmModal').hidden) hideConfirmModal();
+    });
+    function openRecentPopover() {
+      closePopovers();
+      renderRecentList();
+      document.getElementById('popoverOverlay').hidden = false;
+      document.getElementById('recentPopover').hidden = false;
+      document.getElementById('recentBtn').classList.add('active');
+    }
+    function openOverflowPopover() {
+      closePopovers();
+      const txt = document.getElementById('menuChatSetupText');
+      txt.textContent = state.apiKey ? 'Change chat key' : 'Set up chat key';
+      document.getElementById('popoverOverlay').hidden = false;
+      document.getElementById('overflowPopover').hidden = false;
+      document.getElementById('overflowBtn').classList.add('active');
+    }
+
+    function renderRecentList() {
+      const list = document.getElementById('recentList');
+      list.innerHTML = '';
+      const all = Object.values(state.chats).sort((a, b) => b.updatedAt - a.updatedAt);
+      if (all.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'recent-empty';
+        empty.textContent = 'No sessions yet. Start one with the + button.';
+        list.appendChild(empty);
+        return;
+      }
+      for (const chat of all.slice(0, RECENT_LIMIT)) {
+        const row = document.createElement('div');
+        row.className = 'recent-row' + (state.activeTab === chat.id ? ' active' : '');
+        const isOpen = state.openTabs.includes(chat.id);
+        const snippet = chat.kind === 'relay'
+          ? `${chat.thread.length} event${chat.thread.length === 1 ? '' : 's'}`
+          : (firstUserText(chat) || 'Empty chat');
+        row.innerHTML = `
+          <span class="recent-icon ${chat.kind === 'relay' ? 'relay' : ''}"></span>
+          <div class="recent-body">
+            <div class="recent-title-row">
+              <span class="recent-title">${escapeHtml(chat.title || 'Untitled')}</span>
+              <span class="recent-meta">${escapeHtml(formatRelative(chat.updatedAt))}${isOpen ? ' · open' : ''}</span>
+            </div>
+            <div class="recent-snippet">${escapeHtml(snippet)}</div>
+          </div>
+          <button class="recent-row-menu-btn" title="More">
+            <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg>
+          </button>
+        `;
+        row.onclick = (e) => {
+          if (e.target.closest('.recent-row-menu-btn')) return;
+          closePopovers();
+          openTab(chat.id);
+        };
+        const menuBtn = row.querySelector('.recent-row-menu-btn');
+        menuBtn.onclick = (e) => {
+          e.stopPropagation();
+          openRowMenu(menuBtn, chat.id);
+        };
+        list.appendChild(row);
+      }
+    }
+
+    function firstUserText(chat) {
+      const u = chat.thread.find((i) => i.kind === 'user');
+      return u ? u.text : '';
+    }
+    function formatRelative(t) {
+      const diff = Date.now() - t;
+      if (diff < 60_000) return 'just now';
+      if (diff < 3600_000) return Math.floor(diff / 60_000) + 'm ago';
+      if (diff < 86_400_000) return Math.floor(diff / 3600_000) + 'h ago';
+      return Math.floor(diff / 86_400_000) + 'd ago';
+    }
+
+    // -------------------------------------------------------------------
+    // Settings wiring
+    // -------------------------------------------------------------------
+    function refreshSettings() {
+      const display = document.getElementById('keyDisplay');
+      if (state.apiKey) {
+        display.textContent = state.apiKey.slice(0, 12) + '…' + state.apiKey.slice(-4);
+        display.classList.remove('empty');
+      } else {
+        display.textContent = 'No key set';
+        display.classList.add('empty');
+      }
+      document.getElementById('modelSelect').value = state.model;
+      document.getElementById('workerToggle').classList.toggle('on', state.workerOn);
+      document.getElementById('modeHint').textContent = state.workerOn ? 'Worker mode active' : 'Connected';
+    }
+
+    document.getElementById('changeKeyBtn').onclick = () => { state.view = 'setup'; renderView(); };
+    document.getElementById('clearKeyBtn').onclick = async () => {
+      state.apiKey = null;
+      await storageDelete('apiKey');
+      refreshSettings();
+    };
+    document.getElementById('modelSelect').onchange = async (e) => {
+      state.model = e.target.value;
+      await storageSet('model', state.model);
+    };
+    document.getElementById('workerToggle').onclick = async () => {
+      state.workerOn = !state.workerOn;
+      await storageSet('workerOn', state.workerOn);
+      refreshSettings();
+      if (state.workerOn) startWorker(); else stopWorker();
+    };
+    document.getElementById('clearSessionsBtn').onclick = async () => {
+      const relay = state.chats[RELAY_CHAT_ID];
+      state.chats = relay ? { [RELAY_CHAT_ID]: relay } : {};
+      state.openTabs = state.openTabs.filter((id) => id === RELAY_CHAT_ID);
+      if (state.activeTab && !state.chats[state.activeTab]) state.activeTab = state.openTabs[0] || null;
+      if (!state.activeTab) state.view = 'home';
+      renderAll();
+      persist();
+    };
+    document.getElementById('settingsBackBtn').onclick = () => {
+      state.view = state.activeTab ? 'tab' : 'home';
+      renderView();
+    };
+
+    // -------------------------------------------------------------------
+    // Setup wiring
+    // -------------------------------------------------------------------
+    document.getElementById('setupSaveBtn').onclick = async () => {
+      const v = document.getElementById('setupKey').value.trim();
+      if (!v.startsWith('sk-ant-')) {
+        document.getElementById('setupKey').style.borderColor = 'var(--danger)';
+        return;
+      }
+      state.apiKey = v;
+      await storageSet('apiKey', v);
+      refreshSettings();
+      // Open a fresh chat tab so the user can start chatting immediately.
+      const chat = createChat();
+      openTab(chat.id);
+    };
+    document.getElementById('setupBackBtn').onclick = () => {
+      state.view = state.activeTab ? 'tab' : 'home';
+      renderView();
+    };
+    document.getElementById('homeChatBtn').onclick = () => {
+      if (state.apiKey) {
+        const chat = createChat();
+        openTab(chat.id);
+      } else {
+        state.view = 'setup';
+        renderView();
+      }
+    };
+
+    // -------------------------------------------------------------------
+    // Chat input wiring
+    // -------------------------------------------------------------------
+    const inputEl = document.getElementById('chatInput');
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+      updateSendBtn();
+    });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault(); sendMessage();
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); sendMessage();
+      }
+    });
+    document.getElementById('sendBtn').onclick = sendMessage;
+
+    // -------------------------------------------------------------------
+    // Header buttons
+    // -------------------------------------------------------------------
+    document.getElementById('newChatBtn').onclick = () => {
+      if (!state.apiKey) {
+        state.view = 'setup';
+        renderView();
+        return;
+      }
+      const chat = createChat();
+      openTab(chat.id);
+    };
+    document.getElementById('recentBtn').onclick = (e) => {
+      e.stopPropagation();
+      if (!document.getElementById('recentPopover').hidden) { closePopovers(); return; }
+      openRecentPopover();
+    };
+    document.getElementById('overflowBtn').onclick = (e) => {
+      e.stopPropagation();
+      if (!document.getElementById('overflowPopover').hidden) { closePopovers(); return; }
+      openOverflowPopover();
+    };
+    document.getElementById('popoverOverlay').onclick = closePopovers;
+    document.getElementById('menuSettings').onclick = () => {
+      closePopovers();
+      state.view = 'settings';
+      renderView();
+    };
+    document.getElementById('menuChatSetup').onclick = () => {
+      closePopovers();
+      state.view = 'setup';
+      renderView();
+    };
+
+    // -------------------------------------------------------------------
+    // Boot
+    // -------------------------------------------------------------------
+    (async () => {
+      resizeWindow(560, 720);
+
+      const [keyRes, modelRes, workerRes, chatsRes, openTabsRes, activeTabRes] = await Promise.all([
+        storageGet('apiKey'),
+        storageGet('model'),
+        storageGet('workerOn'),
+        storageGet('chats'),
+        storageGet('openTabs'),
+        storageGet('activeTab'),
+      ]);
+      if (keyRes.value) state.apiKey = keyRes.value;
+      if (modelRes.value) state.model = modelRes.value;
+      if (workerRes.value !== undefined && workerRes.value !== null) state.workerOn = workerRes.value;
+      if (chatsRes.value && typeof chatsRes.value === 'object') state.chats = chatsRes.value;
+      if (Array.isArray(openTabsRes.value)) state.openTabs = openTabsRes.value.filter((id) => state.chats[id]);
+      if (activeTabRes.value && state.chats[activeTabRes.value]) state.activeTab = activeTabRes.value;
+
+      // Reset transient flags after a reload so streaming state doesn't persist.
+      for (const chat of Object.values(state.chats)) {
+        chat.busy = false;
+        for (const item of chat.thread || []) {
+          if (item.kind === 'assistant') item.streaming = false;
+        }
+      }
+
+      // Pick a sensible initial view.
+      state.view = state.activeTab ? 'tab' : 'home';
+
+      refreshSettings();
+      renderAll();
+
+      if (state.workerOn) startWorker();
+    })();
+  </script>
+</body>
+</html>

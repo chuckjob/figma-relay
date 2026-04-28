@@ -1,0 +1,13 @@
+{
+  "name": "Relay",
+  "id": "personal.chuckjob.relay",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["https://api.anthropic.com"],
+    "devAllowedDomains": ["*"],
+    "reasoning": "Calls Anthropic for in-plugin agent reasoning; polls a localhost relay (dev only) for tasks."
+  }
+}

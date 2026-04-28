@@ -1,0 +1,19 @@
+{
+  "name": "relay-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that exposes the Relay Figma plugin tools to Claude Code",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "relay-mcp": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}
