@@ -20,9 +20,17 @@ Everything happens inside the chat where you're already writing code, so there's
 
 ## Screenshots
 
-| Empty state | Chat with tool call | Claude Code activity feed |
-|---|---|---|
-| ![Empty chat](docs/screenshots/01-empty-chat.png) | ![Chat with tool call](docs/screenshots/02-chat-tool-call.png) | ![Activity feed](docs/screenshots/03-relay-activity.png) |
+**Empty state.** A new chat with starter prompts.
+
+![Empty chat](docs/screenshots/01-empty-chat.png)
+
+**Chat with tool call.** Asking about components and getting a real answer back.
+
+![Chat with tool call](docs/screenshots/02-chat-tool-call.png)
+
+**Claude Code activity feed.** Live tool log while Claude Code is driving the file.
+
+![Activity feed](docs/screenshots/03-relay-activity.png)
 
 ## How it works
 
