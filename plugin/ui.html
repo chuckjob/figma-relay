@@ -1336,18 +1336,21 @@
       chat.thread.push({ t: Date.now(), subkind, text });
       while (chat.thread.length > RELAY_MAX_EVENTS) chat.thread.shift();
       touchChat(chat);
-      // Auto-open and focus the relay tab — incoming Claude Code activity is
-      // exactly when the user wants to be looking at this feed.
-      if (!state.openTabs.includes(chat.id)) state.openTabs.unshift(chat.id);
-      // Only steal focus from the home view or a non-busy chat — if the user
-      // is mid-stream in another conversation, leave them alone and just bump
-      // the unread count.
-      const activeChatRef = activeChat();
-      const safeToFocus = state.view !== 'tab' || !activeChatRef || (!activeChatRef.busy && activeChatRef.id !== chat.id);
-      if (safeToFocus) {
-        state.activeTab = chat.id;
-        state.view = 'tab';
-        chat.unread = 0;
+      // Only an actual incoming Claude Code task warrants stealing focus.
+      // Connection errors, reconnect notices, and per-tool 'ok' chatter just
+      // bump the unread count — the status badge tells the bigger story.
+      const shouldFocus = subkind === 'task';
+      if (shouldFocus) {
+        if (!state.openTabs.includes(chat.id)) state.openTabs.unshift(chat.id);
+        const activeChatRef = activeChat();
+        const safeToFocus = state.view !== 'tab' || !activeChatRef || (!activeChatRef.busy && activeChatRef.id !== chat.id);
+        if (safeToFocus) {
+          state.activeTab = chat.id;
+          state.view = 'tab';
+          chat.unread = 0;
+        } else if (state.activeTab !== chat.id) {
+          chat.unread = (chat.unread || 0) + 1;
+        }
       } else if (state.activeTab !== chat.id) {
         chat.unread = (chat.unread || 0) + 1;
       }
@@ -1534,6 +1537,14 @@
     // Worker mode (long-poll relay) → writes to Claude Code Relay tab
     // -------------------------------------------------------------------
     let workerAbort = null;
+    // Connection state for self-healing UX:
+    //   - Suppress log noise during the first 3s after the loop starts (server
+    //     may still be coming up via LaunchAgent).
+    //   - Collapse a streak of poll failures into a single "Connection lost" line.
+    //   - On the first successful poll after a failure, clear stale err events
+    //     and write a single "Reconnected" line.
+    const STARTUP_GRACE_MS = 3000;
+    const conn = { startedAt: 0, isDown: false };
 
     function setWorkerStatus(stateKey, label, sub) {
       state.workerStatus = { state: stateKey, label, sub };
@@ -1541,14 +1552,41 @@
       renderTabs();
     }
 
+    function clearRelayErrEvents() {
+      const chat = state.chats[RELAY_CHAT_ID];
+      if (!chat) return;
+      chat.thread = chat.thread.filter((it) => it.subkind !== 'err');
+      if (state.view === 'tab' && state.activeTab === chat.id) renderTabContent();
+    }
+
+    function noteConnectionUp() {
+      if (conn.isDown) {
+        clearRelayErrEvents();
+        pushRelayEvent('ok', 'Reconnected to relay server');
+        conn.isDown = false;
+      }
+    }
+
+    function noteConnectionDown(message) {
+      const inGrace = Date.now() - conn.startedAt < STARTUP_GRACE_MS;
+      if (!conn.isDown && !inGrace) {
+        pushRelayEvent('err', message);
+        conn.isDown = true;
+      }
+      // Subsequent failures while down: silent. Status badge already shows it.
+    }
+
     async function workerLoop(signal) {
+      conn.startedAt = Date.now();
+      conn.isDown = false;
       setWorkerStatus('ok', 'Worker idle', 'Polling http://127.0.0.1:9226 for tasks');
       while (!signal.aborted) {
         try {
           const r = await fetch(RELAY + '/tasks/next?timeout=' + POLL_TIMEOUT_MS, { signal });
           if (signal.aborted) return;
+          noteConnectionUp();
           if (r.status === 204) continue;
-          if (!r.ok) { pushRelayEvent('err', 'poll status ' + r.status); await sleep(2000); continue; }
+          if (!r.ok) { noteConnectionDown('Relay returned status ' + r.status); await sleep(2000); continue; }
           const task = await r.json();
           const kind = task.kind || (task.tool ? 'tool' : 'instruction');
           const summary = kind === 'tool'
@@ -1601,7 +1639,7 @@
           setWorkerStatus('ok', 'Worker idle', 'Polling http://127.0.0.1:9226 for tasks');
         } catch (err) {
           if (signal.aborted) return;
-          pushRelayEvent('err', 'poll loop: ' + err.message);
+          noteConnectionDown('Relay unreachable: ' + err.message);
           setWorkerStatus('err', 'Relay unreachable', 'Is the relay server running on 9226?');
           await sleep(3000);
           setWorkerStatus('ok', 'Retrying...', 'Polling http://127.0.0.1:9226 for tasks');
