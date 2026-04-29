@@ -49,12 +49,24 @@ Three pieces, all local:
 
 ### 1. Run the relay server
 
+Two options. Pick one.
+
+**Option A: install once, run forever (recommended on macOS).** Drops a LaunchAgent so the server boots at login and restarts on crash. No terminal after install.
+
+```sh
+bash scripts/install.sh
+```
+
+To remove later: `bash scripts/uninstall.sh`. Logs land in `~/Library/Logs/relay.log`.
+
+**Option B: run it manually.** Useful for development on the server itself.
+
 ```sh
 cd server
 npm start
 ```
 
-Listens on `127.0.0.1:9226`. The Claude Code path doesn't need an API key.
+Either way, the server listens on `127.0.0.1:9226`. The Claude Code path doesn't need an API key.
 
 ### 2. Install the Figma plugin
 
